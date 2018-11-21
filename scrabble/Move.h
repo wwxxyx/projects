@@ -4,7 +4,6 @@
 #include <vector>
 #include <string>
 #include <list>
-#include <iostream>
 #include <algorithm>
 #include <sstream>
 #include <stdexcept>
@@ -14,53 +13,40 @@
 #include "Board.h"
 #include "Dictionary.h"
 #include "Square.h"
-#include "Referee.h"
 
 // forward declaration to prevent circular includes
-class Board;
+struct Board;
 
-class Move{
-
-public:
+struct Move {
 
 	/* Parses the given move m, and constructs the corresponding move subclass.
-	   m is assumed to be in the format described on the assignment sheet for a move command.
-	   The player passed in is used to verify that the proposed tiles are
-	   in fact in the player's hand.
-	   It can handle all three types of move (PASS, EXCHANGE, PLACE).
-	   Coordinates start with 1.
+	m is assumed to be in the format described on the assignment sheet for a move command.
+	The player passed in is used to verify that the proposed tiles are
+	in fact in the player's hand.
+	It can handle all three types of move (PASS, EXCHANGE, PLACE).
+	Coordinates start with 1.
 	*/
+
 	Move * parseMove(std::string moveString, Player &p);
 
-
 	/* Returns true iff the move is a PASS move */
-	virtual bool isPass () const
-	{
+	virtual bool isPass (){
 		return false;
 	}
 
 	/* Returns true iff the move is an EXCHANGE move */
-	virtual bool isExchange () const
-	{
+	virtual bool isExchange (){
 		return false;
 	}
 
 	/* Returns true iff the move is a PLACE move */
-	virtual bool isWord () const
-	{
+	virtual bool isWord (){
 		return false;
 	}
 
-	/* Executes this move, whichever type it is.
-	   This may throw exceptions; students: it's up to you to
-	   decide (and document) what exactly it throws*/
 	virtual void execute(Board & board, Bag & bag, Dictionary & dictionary) = 0;
 
-	//Add more public/protected/private functions/variables here.
-
 	virtual ~Move();
-
-protected:
 
 	Player * _player;
 
@@ -70,109 +56,72 @@ protected:
 };
 
 // Represents a pass move, where the player takes no action
-class PassMove : public Move
-{
-
-public:
+struct PassMove : Move {
 
 	/* Constructs a pass move. */
 	PassMove(Player * p);
 
 	/* Returns true iff the move is a PASS move */
-	bool isPass () const
-	{
+	bool isPass (){
 		return true;
 	}
 
-	/* Executes this move, whichever type it is.
-	   This may throw exceptions; students: it's up to you to
-	   decide (and document) what exactly it throws*/
 	void execute(Board & board, Bag & bag, Dictionary & dictionary);
-
-	//Add more public/protected/private functions/variables here.
-
 };
 
-// represents an exchange move, were a player replaces certain tiles
-class ExchangeMove : public Move
-{
+// represents an exchange move, where a player replaces certain tiles
+struct ExchangeMove : Move {
 
-public:
 	/* Creates an EXCHANGE move, exchanging the tiles listed in the
-	   string (formatted according to the EXCHANGE command description)
-	   with new tiles from the bag.
-	   */
+	string (formatted according to the EXCHANGE command description)
+	with new tiles from the bag.
+	*/
 	ExchangeMove(std::string tileString, Player * p);
 
 	/* Returns true iff the move is an EXCHANGE move */
-	bool isExchange () const
-	{
+	bool isExchange (){
 		return true;
 	}
 
-	/* Executes this move, whichever type it is.
-	   This may throw exceptions; students: it's up to you to
-	   decide (and document) what exactly it throws*/
 	void execute(Board & board, Bag & bag, Dictionary & dictionary);
 
-	//Add more public/protected/private functions/variables here.
-private:
 	std::string str;
 };
 
 // represents a place move, where a player places one or more tiles onto the board.
-class PlaceMove : public Move
-{
+struct PlaceMove : Move {
 
-public:
-	struct Word_Coord{
-		std::string word;
-		char direction;
-		size_t x_coord;
-		size_t y_coord;
-		int point_total = 0;
-		int WMult = 1;
 
-	};
 	/* Creates a PLACE move, starting at row y, column x, placing the tiles
-	   described by the string tileString. If "horizontal" is true, then the tiles
-	   are placed horizontally, otherwise vertically.
-	   Coordinates start with 1.
-	   The string m is in the format described in HW4; in particular, a '?'
-	   must be followed by the letter it is to be used as.
+	described by the string tileString. If "horizontal" is true, then the tiles
+	are placed horizontally, otherwise vertically.
+	Coordinates start with 1.
+	The string m is in the format described in HW4; in particular, a '?'
+	must be followed by the letter it is to be used as.
 	*/
 	PlaceMove (std::string entry, Player * p);
 
 	/* Returns true iff the move is a PLACE move */
-	bool isWord () const{
+	bool isWord (){
 		return true;
 	}
-
-	// executes any type of move
 
 	void execute(Board & board, Bag & bag, Dictionary & dictionary);
 
 	void check_legality(Board & board, Dictionary & dictionary);
 
-	std::vector<Word_Coord> list_all_words(Board& board);
+	// place a player's proposed tiles on the board
+	void place_tiles(std::deque<Coord> proposal);
+		// redact a player's attempted tile placement from the board if an error is detected during the evaluation
+	void redact_tiles(std::deque<Coord> proposal);
+	// looks at new words made, and verifies that they are in the dictionary
+	void check_words_formed(std::deque<std::pair<std::string, size_t>> words_and_points){
 
-	void print();
 
-	void check_connectivity(Board& board, Dictionary& dictionary);
 
-	size_t get_x(){return this->x;}
-	size_t get_y(){return this->y;}
-	char get_dir(){return this->direction;}
-	std::string get_str(){return this->str;}
-	Player* get_player(){return _player;}
-
-private:
 	size_t x;
 	size_t y;
 	char direction;
 	std::string str;
 };
-
-
-
 #endif /* MOVE_H_ */

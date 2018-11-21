@@ -1,14 +1,3 @@
-/*
-* Player.h
-*
-*  Created on: Sep 18, 2016
-*      Author: kempe
-*/
-
-/* Encodes the state of a player, mostly the name, tiles, points.
-The main non-trivial ability of this class is to produce a vector
-of Tile* from a string describing tiles to place/exchange. */
-
 #ifndef PLAYER_H_
 #define PLAYER_H_
 
@@ -22,43 +11,31 @@ of Tile* from a string describing tiles to place/exchange. */
 #include "Tile.h"
 
 
-class Player
-{
-public:
+struct Player {
 
+	/* [constructor & destructor] */
 	Player (std::string name, size_t maxTiles);
-
 	~Player ();
 
-	Tile* pop_back();
+	/* [methods] */
 
-
-	int remaining_hand_total();
-
-	std::string getLetters();
-
-	std::set<Tile*> getHandTiles() const;
-
-	bool hasTiles(std::string & move);
-
-	std::vector<Tile*> takeTiles (std::string const & move);
-
-	void addTiles (std::vector<Tile*> const & tilesToAdd);
-
-	size_t getMaxTiles()const{return this->maxTiles;}
-	std::string get_name()const{return this->name;}
-	bool get_passed()const{return passed;}
-	void set_passed(bool condition){passed = condition;}
-	bool get_score()const{return score;}
-	void adjust_score(int amount){score += amount;}
-
-private:
-
-	bool passed = false;
-	int score = 0;
-	std::vector<Tile*> hand;
-	size_t maxTiles;
+	/* return the remaining points left in a player's hand at end of game
+	and deletes those tiles from the player's hand */
+	int remaining_hand_total_points();
+	// return the set of tiles that a player currently holds
+	std::set<Tile*> getHandTiles();
+	// check if a player has the tiles in "move"
+	bool has_tiles(std::string & move);
+	// take away the tiles in "move" from the player
+	std::vector<Tile*> take_tiles(std::string & move);
+	// add all the tiles in the vector to the player's hand.
+	void add_tiles(std::vector<Tile*> & tiles_to_add);
+	/* [data members] */
 	std::string name;
+	size_t max_tiles;
+	bool passed;
+	size_t score;
+	std::vector<Tile*> hand;
 };
 
 

@@ -29,9 +29,7 @@ _randEngine()
 		unsigned int points;
 		unsigned int numTiles;
 
-		bagFileStream >> tileLetter;
-		bagFileStream >> points;
-		bagFileStream >> numTiles;
+		bagFileStream >> tileLetter >> points >> numTiles;
 
 		// create tile
 		for(size_t tilesMade = 0; tilesMade < numTiles; ++tilesMade){

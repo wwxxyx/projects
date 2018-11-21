@@ -3,48 +3,45 @@
 
 #include <string>
 #include <set>
-#include <map>
 #include <vector>
-#include <utility>
 #include <fstream>
 #include <iostream>
+#include <deque>
 #include "Tile.h"
 #include "Square.h"
 #include "Move.h"
 #include "Dictionary.h"
 
-class Board{
+struct Board {
 
-public:
-	/* constructor that initializes the board state with an empty board
-	and the size and bonuses and start square based on the given file. */
+	/* [constructor & destructor] */
 	Board(std::string filename);
 	~Board();
-	/* Returns a pointer to the Square object representing the
-	(y,x) position of the board. Indexing starts at 1 here.
-	This is needed only to display the board. */
-	Square * getSquare (size_t y, size_t x) const;
-	std::vector<std::string> char_board;
 
-	char getSquareChar(size_t y, size_t x);
+	/* [methods] */
+	std::deque<std::pair<std::string, size_t>> get_place_move_results(PlaceMove &m);
 
-	/* Returns the number of rows of the board.*/
-	size_t getRows() const;
-
-	/* Returns the number of columns of the board.*/
-	size_t getColumns() const;
-
+	/* returns a list of coordinates, in order, of each tile that will be placed
+	on the board. Warning: must call all of the checks before calling this,
+	or else the function could seg-fault */
+	std::deque<Coord> get_proposal(PlaceMove& move);
+	// attempts to throw exception to some of the more basic illegal moves
+	void check_stupid(PlaceMove& move);
+	// check if the first move is appropriately placed to cover the start tile
+	bool check_first_move(PlaceMove& move);
+	// check if any of the proposed coordinates would land out of bounds
+	void check_out_of_bounds(Coord& curr);
+	// looks at new words made, and verifies that they are in the dictionary
+	bool check_connected(PlaceMove& m, std::deque<Coord> proposal);
+	// check if a given square is already occupied on the board
 	bool isOccupied(size_t y, size_t x);
 
-	void print_chars();
-
-	std::vector<std::vector<Square*>> square;
-
+	/* [data members] */
+	std::vector<std::vector<Square*>> board;
 	size_t rows;
 	size_t columns;
-	size_t start_x;
-	size_t start_y;
-
+	size_t x_origin;
+	size_t y_origin;
 };
 
 #endif /* BOARD_H_ */

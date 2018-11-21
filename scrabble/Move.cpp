@@ -11,10 +11,16 @@ Move::~Move(){
 
 
 Move* Move::parseMove(std::string moveString, Player &p){
-	if (moveString.substr(0,4)=="PASS") return new PassMove(&p);
-	else if (moveString.substr(0,8)=="EXCHANGE") return new ExchangeMove(moveString,&p);
-	else if (moveString.substr(0,5)=="PLACE") return new PlaceMove(moveString,&p);
-	else throw std::invalid_argument("error: please enter a valid argument");
+	if (moveString.substr(0,4)=="PASS"){
+		return new PassMove(&p);
+	}
+	else if (moveString.substr(0,8)=="EXCHANGE"){
+		return new ExchangeMove(moveString,&p);
+	}
+	else if (moveString.substr(0,5)=="PLACE"){
+		return new PlaceMove(moveString,&p);
+	}
+	throw std::invalid_argument("error: please enter a valid argument");
 }
 
 
@@ -24,231 +30,90 @@ PassMove::PassMove(Player* p):Move(p){
 
 
 void PassMove::execute(Board& board, Bag& bag, Dictionary& dictionary){
+
+	// board, bag, & dictionary are not used in a pass move
+	(void)board;
+	(void)bag;
+	(void)dictionary;
+
 	return;
 }
 
 
 ExchangeMove::ExchangeMove(std::string tileString, Player* p):Move(p){
 	str = tileString.substr(9,tileString.length()-9);
+	std::locale loc;
+	std::string move_string = move;
+	for (size_t i=0; i<move_string.length(); i++){
+		move_string[i]=std::tolower(move_string[i],loc);
+	}
 }
 
 
 void ExchangeMove::execute(Board & board, Bag & bag, Dictionary & dictionary){
+	// board & dictionary are not used in a pass move
+	(void)board;
+	(void)dictionary;
+
 	if (!_player->hasTiles(str)){
 		throw std::invalid_argument("error: you don't have those tiles");
 	}
 	else{
+		// player puts the tiles he wants to exchange into the bag
 		bag.addTiles(_player->takeTiles(str));
+		// player receives a random set of tiles from the bag
 		_player->addTiles(bag.drawTiles(str.length()));
 	}
 }
 
 
-PlaceMove::PlaceMove (std::string entry, Player* p):Move(p){
+PlaceMove::PlaceMove (std::string entry, Player* p): Move(p){
 	entry = entry.substr(6,entry.length()-6);
 	std::stringstream ss(entry);
 	ss >> direction >> y >> x >> str;
+	// from here on out, we're using normal CS coordinates
+	--x; --y;
 }
 
 
 void PlaceMove::execute(Board& board, Bag& bag, Dictionary& dictionary){
-	check_legality(board, dictionary);
-	check_connectivity(board, dictionary);
-	std::vector<Tile*> place_tile = _player->takeTiles(str);
+	std::deque<Coord> proposal = get_proposal(this);
+	std::deque<std::pair<std::string, size_t>> words_and_points = get_place_move_results(this);
+	for(int i=0; i<results.size(); i++){
+		std::cerr << "Word placed: " results[i].first << endl;
+		std::cerr << "Points added: " results[i].second << endl;
+		_player.score += results[i].second
+	}
+	std::cerr << "New score: " _player.score << std::endl;
+}
 
-	size_t displacement = 0;
-
-	// first, check if it's vertical or horizontal
-	// if it's vertical, go down from the x, y
-	// if a tile is taken, skip that tile
-
-	size_t total_points = 0;
-	size_t W_mult = 1;
-	size_t word_points = 0;
-
+// place a player's proposed tiles on the board
+void PlaceMove::place_tiles(std::deque<Coord> proposal){
+	std::vector<Tile*> place_tile = _player->take_tiles(str);
 	// places the tiles on the board
-	for(size_t i=0; i<place_tile.size(); i++){
-		if (direction=='|'){
-			if (y+i+displacement>board.getRows()){
-				throw std::logic_error("error: out of bounds");
-			}
-			else if (board.getSquare(y+i+displacement,x)->isOccupied()){
-				displacement++;
-				continue;
-			}
-			else{
-				if (board.getSquare(y+i+displacement,x)->getWMult() > W_mult){
-					W_mult = board.getSquare(y+i+displacement,x)->getWMult() > W_mult;
-				}
-				board.getSquare(y+i+displacement,x)->placeTile(place_tile[i]);
-				word_points+=(board.getSquare(y+i+displacement,x)->getScore() * board.getSquare(y+i+displacement,x)->getLMult());
-			}
-		}
-		if (direction=='-'){
-			if (x+i+displacement>board.getColumns()){
-				throw std::logic_error("error: out of bounds");
-			}
-			else if (board.getSquare(y,x+i+displacement)->isOccupied()){
-				displacement++;
-				continue;
-			}
-			else{
-				if (board.getSquare(y,x+i+displacement)->getWMult() > W_mult){
-					W_mult = board.getSquare(y,x+i+displacement)->getWMult() > W_mult;
-				}
-				board.getSquare(y,x+i+displacement)->placeTile(place_tile[i]);
-				word_points+=(board.getSquare(y,x+i+displacement)->getScore() * board.getSquare(y, x+i+displacement)->getLMult());
-			}
-		}
-		_player->adjust_score(word_points*W_mult);
+	for(size_t i=0; i<proposal.size(); i++){
+		board.board[proposal[i].y][proposal[i].x]->placeTile(place_tile[i]);
 	}
-	// print();
-	_player->addTiles(bag.drawTiles(str.length()));
-	// take the tiles from the player
-	// place the tiles we took from the player on the board
-	// resolve ? wildcards (way back before this function)
-
+	_player->add_tiles(bag.drawTiles(proposal.size()));
 }
 
-
-
-
-// lists the words on the char_board (works!)
-std::vector<PlaceMove::Word_Coord> PlaceMove::list_all_words(Board& board){
-	std::vector<Word_Coord> word_list;
-	for (int y=0; y<board.getRows(); y++){
-		std::string new_word;
-		for (int x=0; x<board.getColumns(); x++){
-			if (board.char_board[y][x]!='#'){
-				new_word+= board.char_board[y][x];
-				if (x==board.getColumns()-1 && new_word.length()>1){
-					Word_Coord new_word_coord;
-					new_word_coord.word = new_word;
-					new_word_coord.x_coord = x;
-					new_word_coord.y_coord = y;
-					new_word_coord.direction = '-';
-					word_list.push_back(new_word_coord);
-					new_word = "";
-				}
-			}
-			else if (new_word.length()>1){
-				Word_Coord new_word_coord;
-				new_word_coord.word = new_word;
-				new_word_coord.x_coord = x;
-				new_word_coord.y_coord = y;
-				new_word_coord.direction = '-';
-				word_list.push_back(new_word_coord);
-				new_word = "";
-			}
-			else new_word="";
-		}
+// redact a player's attempted tile placement from the board if an error is detected during the evaluation
+void PlaceMove::redact_tiles(std::deque<Coord> proposal){
+	std::vector<Tile*> removed_tiles;
+	for(size_t i=0; i<proposal.size(); i++){
+		removed_tiles.push_back(board.board[proposal[i].y][proposal[i].x]->redactTile(proposal[i]));
 	}
-	for (int x=0; x<board.getColumns(); x++){
-		std::string new_word;
-		for (int y=0; y<board.getRows(); y++){
-			if (board.char_board[y][x]!='#'){
-				new_word+= board.char_board[y][x];
-				if (y==board.getColumns()-1 && new_word.length()>1){
-					Word_Coord new_word_coord;
-					new_word_coord.word = new_word;
-					new_word_coord.x_coord = x;
-					new_word_coord.y_coord = y;
-					new_word_coord.direction = '-';
-					word_list.push_back(new_word_coord);
-					new_word = "";
-				}
-			}
-			else if (new_word.length()>1){
-				Word_Coord new_word_coord;
-				new_word_coord.word = new_word;
-				new_word_coord.x_coord = x;
-				new_word_coord.y_coord = y;
-				new_word_coord.direction = '|';
-				word_list.push_back(new_word_coord);
-				new_word = "";
-			}
-			else new_word="";
-		}
-	}
-	return word_list;
+	_player->add_tiles(removed_tiles);
 }
 
-// check if the words attempted to be placed are legal (testing!)
-void PlaceMove::check_legality(Board& board, Dictionary& dictionary){
-	if (board.getSquare(y,x)->isOccupied()){
-		throw std::invalid_argument("error: that tile is already occupied");
-	}
-	if (str.length()==0){
-		throw std::invalid_argument("error: you must play at least one letter");
-	}
-	if (!_player->hasTiles(str)){
-		throw std::invalid_argument("error: you don't have those tiles");
-	}
-	if (direction!='-' && direction!='|'){
-		throw std::invalid_argument("error: invalid direction");
-	}
-	std::vector<Word_Coord> old_words = list_all_words(board);
-	// at this point, all words currently on the board are saved in word_list
-
-	for (size_t i=0; i<str.size(); i++){
-		size_t ycoord = y-1;
-		size_t xcoord = x-1;
-		if (direction=='|'){
-			if (!board.isOccupied(board.start_y,board.start_x) && (xcoord!=(board.start_x-1))){
-				if(i==str.size()-1 && ycoord < board.start_y-1){
-					throw std::invalid_argument("error: first move won't touch the start tile");
-				}
-			}
-			while (board.char_board[ycoord][xcoord]!='#'){
-				ycoord+=1;
-				if (ycoord > board.getRows()-1){
-					throw std::invalid_argument("error: move would be out of bounds.");
-				}
-			}
-			board.char_board[ycoord][xcoord]=str[i];
-		}
-		if (direction=='-'){
-			if (!board.isOccupied(board.start_y,board.start_x) && (ycoord!=(board.start_y-1))){
-				if(i==str.size()-1 && xcoord < board.start_x-1){
-					throw std::invalid_argument("error: first move won't touch the start tile");
-				}
-			}
-			while (board.char_board[ycoord][xcoord]!='#'){
-
-				xcoord+=1;
-				if (xcoord > board.getColumns()-1){
-					throw std::invalid_argument("error: move would be out of bounds.");
-				}
-			}
-			board.char_board[ycoord][xcoord]=str[i];
-		}
-	}
-	// at this point, the char_board is updated with the new inputs
-
-	std::vector<Word_Coord> new_words = list_all_words(board);
-	for(int i=0; i<new_words.size(); i++){
-		if (!dictionary.isLegalWord(new_words[i].word)){
-			throw std::invalid_argument("error: one or more words created not legal");
-		}
-	}
-
-	// remove all words that were already on the board
-	for(int i=0; i<new_words.size(); i++){
-		if (old_words.size()==0) break;
-		for (int k=0; k<old_words.size(); k++){
-			if ((new_words[i].word == old_words[k].word) && \
-			(new_words[i].x_coord == old_words[k].x_coord)){
-				if ((new_words[i].y_coord == old_words[k].y_coord) && (new_words[i].direction == old_words[k].direction)){
-					new_words.erase(new_words.begin()+i);
-					i-=1;
-				}
-			}
-		}
-	}
-	if (new_words.size()==0) throw std::logic_error("error: no new words created");
-	// make sure that a new word was actually created
+// looks at new words made, and verifies that they are in the dictionary
+void PlaceMove::check_words_formed(std::deque<std::pair<std::string, size_t>> words_and_points){
+if (results.size() == 0){
+	throw std::invalid_argument("error: no new words are created");
 }
-
-void PlaceMove::check_connectivity(Board& board,Dictionary& dictionary){
-	return;
+for (size_t i=0; i<words_and_points.size(); i++){
+	if (!dictionary.is_legal_word(words_and_points[i].first)){
+		board.redact_tiles(proposal);
+		throw std::invalid_argument("error: a word created was not found in the dictionary");
+	}
 }

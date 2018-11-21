@@ -5,7 +5,7 @@
 // STUDENTS: you must use this file as-is without modifications
 
 #include "ConsolePrinter.h"
-#include "rang.h"
+#include "Rang.h"
 #include <iostream>
 #include <iomanip>
 #include <cmath>
@@ -68,8 +68,8 @@ const std::string space(" ");
 
 void ConsolePrinter::printBoard(Board const &board)
 {
-	const size_t horizSquares = board.getRows();
-	const size_t vertSquares = board.getColumns();
+	const size_t horizSquares = board.rows();
+	const size_t vertSquares = board.columns();
 
 	// width and height of the blank area inside a square
 	const size_t squareInnerWidth = 5;
@@ -166,7 +166,7 @@ void ConsolePrinter::printBoard(Board const &board)
 			{
 				std::cout << FG_COLOR_LINE << BG_COLOR_NORMAL_SQUARE << vertLine;
 
-				Square *currentSquare = board.getSquare(vertSquare, horizSquare);
+				Square *currentSquare = board.square[vertSquare-1, horizSquare-1]
 
 				// figure out background color
 				if (currentSquare->getWMult() == 2)
